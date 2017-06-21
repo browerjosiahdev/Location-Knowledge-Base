@@ -71,6 +71,8 @@ public class GimbalService extends Service {
             @Override
             public Notification.Builder prepareCommunicationForDisplay(Communication communication, Push push, int notificationId) {
                 addEvent(new GimbalEvent(TYPE.COMMUNICATION_INSTANT_PUSH, communication.getTitle() + ": CONTENT_DELIVERED", new Date()));
+
+                return null;
             }
 
             @Override

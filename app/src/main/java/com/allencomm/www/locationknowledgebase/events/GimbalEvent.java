@@ -17,6 +17,10 @@ public class GimbalEvent implements Serializable {
     private String title;
     private Date date;
 
+    public GimbalEvent() {
+
+    }
+
     public GimbalEvent(TYPE type, String title, Date date) {
         this.type = type;
         this.title = title;

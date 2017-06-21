@@ -4,7 +4,8 @@
     xmlns:tools="http://schemas.android.com/tools"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    tools:context="com.allencomm.www.locationknowledgebase.Home">
+    tools:context="com.allencomm.www.locationknowledgebase.Home"
+    android:id="@+id/content">
 
     <android.support.design.widget.AppBarLayout
         android:layout_width="match_parent"
@@ -23,11 +24,32 @@
     <include layout="@layout/content_home" />
 
     <android.support.design.widget.FloatingActionButton
-        android:id="@+id/fab"
+        android:id="@+id/scan"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:layout_gravity="bottom|end"
         android:layout_margin="@dimen/fab_margin"
-        app:srcCompat="@android:drawable/ic_dialog_email" />
+        app:srcCompat="@drawable/ic_camera_black_24dp" />
+
+    <TextView
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:text="Hello World!"
+        android:gravity="center"
+        android:id="@+id/placeholder_text" />
+
+    <SurfaceView
+        android:layout_width="640px"
+        android:layout_height="480px"
+        android:layout_gravity="center"
+        android:id="@+id/camera_view"
+        android:visibility="gone" />
+
+    <Button
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_gravity="bottom"
+        android:text="DISCOVER"
+        android:id="@+id/discover"/>
 
 </android.support.design.widget.CoordinatorLayout>
