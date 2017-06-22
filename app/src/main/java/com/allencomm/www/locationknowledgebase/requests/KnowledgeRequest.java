@@ -2,6 +2,7 @@ package com.allencomm.www.locationknowledgebase.requests;
 
 import com.android.volley.VolleyError;
 
+import org.json.JSONArray;
 import org.json.JSONObject;
 
 /**
@@ -10,6 +11,10 @@ import org.json.JSONObject;
 
 public class KnowledgeRequest {
     public void onResponse(JSONObject response) {
+
+    }
+
+    public void onResponse(JSONArray response) {
 
     }
 

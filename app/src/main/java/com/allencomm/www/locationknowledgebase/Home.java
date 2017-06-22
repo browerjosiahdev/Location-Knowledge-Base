@@ -10,6 +10,7 @@ import android.content.pm.PackageManager;
 import android.graphics.BitmapFactory;
 import android.graphics.Bitmap;
 import android.os.Bundle;
+import android.support.annotation.NonNull;
 import android.support.design.widget.FloatingActionButton;
 import android.support.design.widget.Snackbar;
 import android.support.v4.app.ActivityCompat;
@@ -46,18 +47,29 @@ import com.android.volley.toolbox.*;
 import com.allencomm.www.locationknowledgebase.services.GimbalService;
 import com.allencomm.www.locationknowledgebase.data_access.GimbalDAO;
 
+import org.json.JSONArray;
+import org.json.JSONException;
 import org.json.JSONObject;
 
 import java.io.IOException;
 import java.io.InputStream;
+import java.util.ArrayList;
+import java.util.Collection;
+import java.util.HashMap;
+import java.util.Iterator;
+import java.util.List;
+import java.util.ListIterator;
+import java.util.Map;
+import java.util.Set;
 
 public class Home extends AppCompatActivity {
 
     public static final int CAMERA_PERMISSION_REQUEST = 1;
     public static final int BLUETOOTH_PERMISSION_REQUEST = 2;
-    public static final String KNOWLEDGE_BASE_URL = "http://dev-cwsandbox.allencomm.com/";
+    public static final String KNOWLEDGE_BASE_URL = "http://dev-cwsandbox.allencomm.com/";// "http://10.200.3.207:63047/";
 
     public BroadcastReceiver bluetoothReceiver;
+    public ArrayList<String> validMacAddresses = new ArrayList<String>();
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -79,10 +91,6 @@ public class Home extends AppCompatActivity {
             ActivityCompat.requestPermissions(this,
                     new String[]{Manifest.permission.BLUETOOTH, Manifest.permission.BLUETOOTH_ADMIN, Manifest.permission.ACCESS_COARSE_LOCATION},
                     BLUETOOTH_PERMISSION_REQUEST);
-        } else {
-            Snackbar
-                    .make(findViewById(R.id.content), "Bluetooth Permission Granted", Snackbar.LENGTH_LONG)
-                    .show();
         }
 
         // Set the action toolbar.
@@ -98,17 +106,46 @@ public class Home extends AppCompatActivity {
             }
         });
 
-        Button discover = (Button) findViewById(R.id.discover);
+        final Button discover = (Button) findViewById(R.id.discover);
+        discover.setEnabled(false);
         discover.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View view) {
                 Home.this.discover(view);
             }
         });
+
+        // Request the list of valid MAC addresses.
+        requestValidAddresses(new KnowledgeRequest() {
+            @Override
+            public void onResponse(JSONArray response) {
+                for (int i = 0; i < response.length(); i++) {
+                    try {
+                        validMacAddresses.add(i, response.getString(i));
+                    } catch (JSONException error) {
+                        Log.e("RESPONSE ERROR", error.getMessage());
+                    }
+                }
+
+                // Enable the discover button if there is at least one
+                // valid MAC address.
+                if (validMacAddresses.size() > 0) {
+                    discover.setEnabled(true);
+                }
+            }
+
+            @Override
+            public void onError(VolleyError error) {
+                if (error != null && error.getMessage() != null) {
+                    Log.e("RESPONSE ERROR", error.getMessage());
+                }
+            }
+        });
     }
 
     public void discover(View view) {
         final TextView placeholderTextView = (TextView) findViewById(R.id.placeholder_text);
+        final BluetoothAdapter adapter = BluetoothAdapter.getDefaultAdapter();
 
         // Create the broadcast receiver.
         bluetoothReceiver = new BroadcastReceiver() {
@@ -117,43 +154,68 @@ public class Home extends AppCompatActivity {
                 String action = intent.getAction();
                 switch (action) {
                     case BluetoothAdapter.ACTION_DISCOVERY_STARTED: {
-                        Snackbar
-                                .make(findViewById(R.id.content), "Discovering...", Snackbar.LENGTH_LONG)
-                                .show();
+                        // TODO: What should we do when the discovery process begins?
 
                         break;
                     }
                     case BluetoothAdapter.ACTION_DISCOVERY_FINISHED: {
-                        Snackbar
-                                .make(findViewById(R.id.content), "...Discovered", Snackbar.LENGTH_LONG)
-                                .show();
+                        adapter.cancelDiscovery();
 
                         break;
                     }
                     case BluetoothDevice.ACTION_FOUND: {
                         BluetoothDevice device = (BluetoothDevice) intent.getParcelableExtra(BluetoothDevice.EXTRA_DEVICE);
+                        final String address = device.getAddress();
 
-                        requestKnowledge(device.getAddress(), new KnowledgeRequest() {
-                            @Override
-                            public void onResponse(JSONObject response) {
-                                String title = "";
-                                String body = "";
+                        // Check to see if the found MAC address is valid.
+                        if (validMacAddresses.contains(address)) {
+                            Snackbar
+                                    .make(findViewById(R.id.content), "Found device: " + address, Snackbar.LENGTH_LONG)
+                                    .show();
 
-                                try {
-                                    title = response.getString("title");
-                                    body = response.getString("body");
-                                } catch (org.json.JSONException e) {
-                                    Log.e("RESPONSE JSON", e.getMessage());
+                            // Get the RSSI value to determine the connection strength to the
+                            // Bluetooth device,
+                            final int rssi = intent.getShortExtra(BluetoothDevice.EXTRA_RSSI, Short.MIN_VALUE);
+                            HashMap<String, String> requestData = new HashMap<String, String>();
+                            requestData.put("id", address);
+                            requestData.put("rssi", Integer.toString(rssi));
+
+                            requestKnowledge(requestData, new KnowledgeRequest() {
+                                @Override
+                                public void onResponse(JSONObject response) {
+                                    Snackbar
+                                            .make(findViewById(R.id.content), "Device content retrieved!", Snackbar.LENGTH_LONG)
+                                            .show();
+
+                                    String title = "";
+                                    String body = "";
+
+                                    try {
+                                        title = response.getString("title");
+                                        body = response.getString("body");
+
+                                        adapter.cancelDiscovery();
+                                    } catch (JSONException error) {
+                                        Log.e("RESPONSE JSON", error.getMessage());
+                                    }
+
+                                    placeholderTextView.setText(title + " : " + body);
                                 }
 
-                                placeholderTextView.setText(title + " : " + body);
-                            }
+                                @Override
+                                public void onError(VolleyError error) {
+                                    Snackbar
+                                            .make(findViewById(R.id.content), "Unable to retrieve device content: " + address + " : " + Integer.toString(rssi), Snackbar.LENGTH_LONG)
+                                            .show();
 
-                            @Override
-                            public void onError(VolleyError error) {
-                                Log.e("RESPONSE ERROR", error.getMessage());
-                            }
-                        });
+                                    placeholderTextView.setText("onError: " + error.toString());
+
+                                    if (error != null && error.getMessage() != null) {
+                                        Log.e("RESPONSE ERROR", error.getMessage());
+                                    }
+                                }
+                            });
+                        }
 
                         break;
                     }
@@ -168,7 +230,6 @@ public class Home extends AppCompatActivity {
         filter.addAction(BluetoothAdapter.ACTION_DISCOVERY_FINISHED);
         registerReceiver(bluetoothReceiver, filter);
 
-        BluetoothAdapter adapter = BluetoothAdapter.getDefaultAdapter();
         adapter.startDiscovery();
     }
 
@@ -240,8 +301,10 @@ public class Home extends AppCompatActivity {
                             // Check if this is a Location Knowledge Base ID qr code.
                             if (qrValue.contains("AllenCommLKB:")) {
                                 String knowledgeBaseId = qrValue.split(":")[1];
+                                HashMap<String, String> requestData = new HashMap<String, String>();
+                                requestData.put("id", knowledgeBaseId);
 
-                                requestKnowledge(knowledgeBaseId, new KnowledgeRequest() {
+                                requestKnowledge(requestData, new KnowledgeRequest() {
                                     @Override
                                     public void onResponse(JSONObject response) {
                                         String title = "";
@@ -281,9 +344,18 @@ public class Home extends AppCompatActivity {
         });
     }
 
-    public void requestKnowledge(String id, final KnowledgeRequest request) {
-        String url = KNOWLEDGE_BASE_URL + "api/knowledge/item/" + id;
+    public void requestKnowledge(HashMap<String, String> uriData, final KnowledgeRequest request) {
+        String url = KNOWLEDGE_BASE_URL + "api/knowledge/item?";
         RequestQueue queue = Volley.newRequestQueue(this);
+
+        // Convert the map of URI data to URL parameters.
+        if (uriData != null) {
+            for (HashMap.Entry<String, String> entry : uriData.entrySet()) {
+                url += entry.getKey() + "=" + entry.getValue() + "&";
+            }
+        }
+
+        url = url.substring(0, url.length() - 1);
 
         JsonObjectRequest jsonObjectRequest = new JsonObjectRequest(
                 Request.Method.GET,
@@ -304,6 +376,31 @@ public class Home extends AppCompatActivity {
         );
 
         queue.add(jsonObjectRequest);
+    }
+
+    public void requestValidAddresses(final KnowledgeRequest request) {
+        String url = KNOWLEDGE_BASE_URL + "api/knowledge/addresses";
+        RequestQueue queue = Volley.newRequestQueue(this);
+
+        JsonArrayRequest jsonArrayRequest = new JsonArrayRequest(
+                Request.Method.GET,
+                url,
+                null,
+                new Response.Listener<JSONArray>() {
+                    @Override
+                    public void onResponse(JSONArray response) {
+                        request.onResponse(response);
+                    }
+                },
+                new Response.ErrorListener() {
+                    @Override
+                    public void onErrorResponse(VolleyError error) {
+                        request.onError(error);
+                    }
+                }
+        );
+
+        queue.add(jsonArrayRequest);
     }
 
     @Override
