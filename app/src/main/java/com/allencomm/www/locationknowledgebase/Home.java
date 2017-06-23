@@ -189,7 +189,9 @@ public class Home extends AppCompatActivity {
 
                                     String title = "";
                                     String body = "";
+                                    String url = "";
 
+                                    // Extract the content.
                                     try {
                                         title = response.getString("title");
                                         body = response.getString("body");
@@ -199,7 +201,22 @@ public class Home extends AppCompatActivity {
                                         Log.e("RESPONSE JSON", error.getMessage());
                                     }
 
+                                    // Display the content.
                                     placeholderTextView.setText(title + " : " + body);
+
+                                    // Open the associated URL.
+                                    try {
+                                        url = response.getString("url");
+
+                                        if (url != null) {
+                                            Uri uri = Uri.parse(url);
+                                            Intent intent = new Intent(Intent.ACTION_VIEW, uri);
+
+                                            startActivity(intent);
+                                        }
+                                    } catch (JSONException error) {
+                                        Log.e("RESPONSE URL", error.getMessage());
+                                    }
                                 }
 
                                 @Override
@@ -309,7 +326,9 @@ public class Home extends AppCompatActivity {
                                     public void onResponse(JSONObject response) {
                                         String title = "";
                                         String body = "";
+                                        String url = "";
 
+                                        // Extract the content.
                                         try {
                                             title = response.getString("title");
                                             body = response.getString("body");
@@ -317,7 +336,22 @@ public class Home extends AppCompatActivity {
                                             Log.e("RESPONSE JSON", e.getMessage());
                                         }
 
+                                        // Display the content.
                                         placeholderTextView.setText(title + " : " + body);
+
+                                        // Open the associated URL.
+                                        try {
+                                            url = response.getString("url");
+
+                                            if (url != null) {
+                                                Uri uri = Uri.parse(url);
+                                                Intent intent = new Intent(Intent.ACTION_VIEW, uri);
+
+                                                startActivity(intent);
+                                            }
+                                        } catch (JSONException error) {
+                                            Log.e("RESPONSE URL", error.getMessage());
+                                        }
                                     }
 
                                     @Override
